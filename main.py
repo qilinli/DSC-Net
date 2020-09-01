@@ -153,9 +153,23 @@ class DSCNet(nn.Module):
         loss_ae = F.mse_loss(x_recon, x, reduction='sum')
         loss_coef = torch.sum(torch.pow(self.self_expression.Coefficient, 2))
         loss_selfExp = F.mse_loss(z_recon, z, reduction='sum')
-        loss = loss_ae + weight_coef * loss_coef + weight_selfExp * loss_selfExp
+        loss_smooth = self.smoothLoss(z)
+        loss = loss_ae + weight_coef * loss_coef + weight_selfExp * loss_selfExp + 0.0005*loss_smooth
 
         return loss
+
+    def smoothLoss(self, z):
+        n = z.shape[0]
+        C = torch.abs(self.self_expression.Coefficient)
+        C = 0.5 * (C + torch.transpose(C, 0, 1))
+        C = C.fill_diagonal_(0)
+        C = C.flatten()
+        z1 = z.repeat(1, n).view(n*n, -1)
+        z2 = z.repeat(n, 1)
+        z3 = torch.sum(torch.pow(z1 - z2, 2), 1)
+        loss_smooth = torch.sum(C*z3)
+
+        return loss_smooth
 
 
 def train(model,  # type: DSCNet
@@ -184,6 +198,11 @@ def train(model,  # type: DSCNet
 if __name__ == "__main__":
     import argparse
     import warnings
+
+    torch.manual_seed(0)
+    np.random.seed(0)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
     parser = argparse.ArgumentParser(description='DSCNet')
     parser.add_argument('--db', default='coil20',

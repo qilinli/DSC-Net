@@ -151,6 +151,18 @@ class DSCNet(nn.Module):
         loss /= x.size(0)  # just control the range, does not affect the optimization.
         return loss
 
+    def smoothLoss(self, z):
+        n = z.shape[0]
+        C = torch.abs(self.self_expression.Coefficient)
+        C = 0.5 * (C + torch.transpose(C, 0, 1))
+        C = C.fill_diagonal_(0)
+        C = C.flatten()
+        z1 = z.repeat(1, n).view(n*n, -1)
+        z2 = z.repeat(n, 1)
+        z3 = torch.sum(torch.pow(z1 - z2, 2), 1)
+        loss_smooth = torch.sum(C*z3)
+
+        return loss_smooth
 
 def train(model,  # type: DSCNet
           x, y, epochs, lr=1e-3, weight_coef=1.0, weight_selfExp=150.0, device='cuda',
@@ -167,6 +179,7 @@ def train(model,  # type: DSCNet
     for epoch in range(epochs):
         x_recon, z, z_recon = model(x)
         loss = model.loss_fn(x, x_recon, z, z_recon, weight_coef=weight_coef, weight_selfExp=weight_selfExp)
+        print("the smooth loss is {}".format(model.smoothLoss(z)))
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -193,6 +206,7 @@ if __name__ == "__main__":
         os.makedirs(args.save_dir)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print('Using GPU' if torch.cuda.is_available() else 'Using CPU')
     db = args.db
     if db == 'yaleb':
         # load data
