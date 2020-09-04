@@ -147,21 +147,19 @@ class DSCNet(nn.Module):
         loss_ae = 0.5 * F.mse_loss(x_recon, x, reduction='sum')
         loss_coef = torch.sum(torch.pow(self.self_expression.Coefficient, 2))
         loss_selfExp = 0.5 * F.mse_loss(z_recon, z, reduction='sum')
-        loss = loss_ae + weight_coef * loss_coef + weight_selfExp * loss_selfExp
+        loss_smooth = self.smoothLoss(z)
+        loss = loss_ae + weight_coef * loss_coef + weight_selfExp * loss_selfExp + 0.2*loss_smooth
         loss /= x.size(0)  # just control the range, does not affect the optimization.
         return loss
 
     def smoothLoss(self, z):
-        n = z.shape[0]
+        # ||z_i - z_j||^2 using broadcasting
+        Z = torch.pow(z.unsqueeze(1) - z.unsqueeze(0), 2).sum(-1)
         C = torch.abs(self.self_expression.Coefficient)
         C = 0.5 * (C + torch.transpose(C, 0, 1))
         C = C.fill_diagonal_(0)
-        C = C.flatten()
-        z1 = z.repeat(1, n).view(n*n, -1)
-        z2 = z.repeat(n, 1)
-        z3 = torch.sum(torch.pow(z1 - z2, 2), 1)
-        loss_smooth = torch.sum(C*z3)
 
+        loss_smooth = (Z*C).sum()/z.shape[0]
         return loss_smooth
 
 def train(model,  # type: DSCNet
@@ -179,7 +177,6 @@ def train(model,  # type: DSCNet
     for epoch in range(epochs):
         x_recon, z, z_recon = model(x)
         loss = model.loss_fn(x, x_recon, z, z_recon, weight_coef=weight_coef, weight_selfExp=weight_selfExp)
-        print("the smooth loss is {}".format(model.smoothLoss(z)))
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -194,6 +191,11 @@ def train(model,  # type: DSCNet
 if __name__ == "__main__":
     import argparse
     import os
+
+    torch.manual_seed(0)
+    np.random.seed(0)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
     parser = argparse.ArgumentParser(description='DSCNet')
     parser.add_argument('--db', default='yaleb', choices=['yaleb'])
@@ -238,7 +240,7 @@ if __name__ == "__main__":
     else:
         exit(1)
 
-    all_subjects = [38]  # [10, 15, 20, 25, 30, 35, 38]
+    all_subjects = [10]  # [10, 15, 20, 25, 30, 35, 38]
     acc_avg, nmi_avg = [], []
     iter_loop = 0
     for iter_loop in range(len(all_subjects)):  # how many subjects to use
