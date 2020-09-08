@@ -147,8 +147,8 @@ class DSCNet(nn.Module):
         loss_ae = 0.5 * F.mse_loss(x_recon, x, reduction='sum')
         loss_coef = torch.sum(torch.pow(self.self_expression.Coefficient, 2))
         loss_selfExp = 0.5 * F.mse_loss(z_recon, z, reduction='sum')
-        loss_smooth = self.smoothLoss(z)
-        loss = loss_ae + weight_coef * loss_coef + weight_selfExp * loss_selfExp + 0.2*loss_smooth
+        #loss_smooth = self.smoothLoss(z)
+        loss = loss_ae + weight_coef * loss_coef + weight_selfExp * loss_selfExp #+ 0.*loss_smooth
         loss /= x.size(0)  # just control the range, does not affect the optimization.
         return loss
 

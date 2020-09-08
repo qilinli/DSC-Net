@@ -153,10 +153,10 @@ class DSCNet(nn.Module):
         loss_ae = F.mse_loss(x_recon, x, reduction='sum')
         loss_coef = torch.sum(torch.pow(self.self_expression.Coefficient, 2))
         loss_selfExp = F.mse_loss(z_recon, z, reduction='sum')
-        loss_smooth = self.smoothLoss(z)
-        loss = loss_ae + weight_coef * loss_coef + weight_selfExp * loss_selfExp + 0*loss_smooth
+        # loss_smooth = self.smoothLoss(z)
+        loss = loss_ae + weight_coef * loss_coef + weight_selfExp * loss_selfExp #+ 0*loss_smooth
 
-        return loss, loss_ae, loss_coef, loss_selfExp, loss_smooth
+        return loss, loss_ae, loss_coef, loss_selfExp, loss_selfExp
 
     def smoothLoss(self, z):
         # ||z_i - z_j||^2 using broadcasting
@@ -169,18 +169,18 @@ class DSCNet(nn.Module):
         return loss_smooth
 
 
-    # def smoothLoss(self, z):
-    #     n = z.shape[0]
-    #     z1 = z.repeat(1, n).view(n*n, -1)
-    #     z2 = z.repeat(n, 1)
-    #     z3 = torch.sum(torch.pow(z1 - z2, 2), 1)
-    #
-    #     C = torch.abs(self.self_expression.Coefficient)
-    #     C = 0.5 * (C + torch.transpose(C, 0, 1))
-    #     C = C.fill_diagonal_(0)
-    #     C = C.flatten()
-    #     loss_smooth = torch.sum(C*z3)
-    #     return loss_smooth
+    def smoothLoss(self, z):
+        n = z.shape[0]
+        z1 = z.repeat(1, n).view(n*n, -1)
+        z2 = z.repeat(n, 1)
+        z3 = torch.sum(torch.pow(z1 - z2, 2), 1)
+
+        C = torch.abs(self.self_expression.Coefficient)
+        C = 0.5 * (C + torch.transpose(C, 0, 1))
+        C = C.fill_diagonal_(0)
+        C = C.flatten()
+        loss_smooth = torch.sum(C*z3)
+        return loss_smooth
 
 def train(model,  # type: DSCNet
           x, y, epochs, lr=1e-3, weight_coef=1.0, weight_selfExp=150, device='cuda',
@@ -204,9 +204,9 @@ def train(model,  # type: DSCNet
             y_pred = spectral_clustering(C, K, dim_subspace, alpha, ro)
             print('Epoch %02d: loss=%.4f, acc=%.4f, nmi=%.4f' %
                   (epoch, loss.item() / y_pred.shape[0], acc(y, y_pred), nmi(y, y_pred)))
-            print('loss_ae=%.4f, loss_coef=%.4f, loss_selfExp=%.4f, loss_smooth=%.4f==' %
-                  (loss_ae.item() / y_pred.shape[0], loss_coef.item() / y_pred.shape[0],
-                   loss_selfExp.item() / y_pred.shape[0], loss_smooth.item() / y_pred.shape[0]))
+            # print('loss_ae=%.4f, loss_coef=%.4f, loss_selfExp=%.4f, loss_smooth=%.4f==' %
+            #       (loss_ae.item() / y_pred.shape[0], loss_coef.item() / y_pred.shape[0],
+            #        loss_selfExp.item() / y_pred.shape[0], loss_smooth.item() / y_pred.shape[0]))
 
 
 if __name__ == "__main__":

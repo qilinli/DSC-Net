@@ -3,6 +3,7 @@ from sklearn import cluster
 from scipy.sparse.linalg import svds
 from sklearn.preprocessing import normalize
 from sklearn.metrics import normalized_mutual_info_score, adjusted_rand_score, adjusted_mutual_info_score
+from TPG import tpg
 
 nmi = normalized_mutual_info_score
 ami = adjusted_mutual_info_score
@@ -72,7 +73,7 @@ def post_proC(C, K, d, ro):
     Z = U.dot(U.T)
     Z = Z * (Z > 0)
     L = np.abs(Z ** ro)
-    L = L / L.max()
+    L = L / (L.max())
     L = 0.5 * (L + L.T)
     spectral = cluster.SpectralClustering(n_clusters=K, eigen_solver='arpack', affinity='precomputed',
                                           assign_labels='discretize')
@@ -83,5 +84,6 @@ def post_proC(C, K, d, ro):
 
 def spectral_clustering(C, K, d, alpha, ro):
     C = thrC(C, alpha)
+    # C = tpg(np.abs(C), 5)
     y, _ = post_proC(C, K, d, ro)
     return y
